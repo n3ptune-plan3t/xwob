@@ -19,6 +19,56 @@ The two forks stay separate programs with their own config format; xwob adds a
 small launcher, a single systemd socket/service, and one build. Input on stdin
 and all options are handed to the program that gets started.
 
+## Screenshots
+
+Vertical bars stack the characters upright, one per line. Each pixel of the
+label is black or white depending on what is under it, so a label that crosses
+the fill edge flips colour right at the edge (see `45%` below).
+
+### Wayland (wob fork)
+
+`xwob` running in a Wayland session (headless sway). Inputs, left to right:
+`45`, `73!` (alt style, gray), `130` (wraps to 30% and switches to the overflow
+colour).
+
+<p align="center">
+  <img src="assets/xwob/wayland_xwob_45_73alt_130_cropped.png" alt="xwob on Wayland: 45%, 73% alt style, 130% wrapped to 30% in overflow colour" width="360">
+</p>
+
+### X11 (xob fork)
+
+`xwob` running in an X11 session. Inputs, left to right: `45`, `70!` (alt style).
+
+<p align="center">
+  <img src="assets/xwob/x11_xwob_45_70alt_cropped.png" alt="xwob on X11: 45% and 70% alt style" width="300">
+</p>
+
+The X11 backend also supports xob's proportional overflow. Inputs, left to
+right: `45`, `100`, `140` (the red part is the overflow, the white part is the
+in-range portion):
+
+<p align="center">
+  <img src="assets/xwob/x11_xob_45_100_140overflow_cropped.png" alt="xob fork on X11: 45%, 100%, 140% with proportional overflow" width="480">
+</p>
+
+<details>
+<summary>Full-screen captures</summary>
+
+**Wayland** (1280×720)
+
+<img src="assets/xwob/wayland_raw_45.png" alt="Wayland, 45" width="420">
+<img src="assets/xwob/wayland_raw_73_alt.png" alt="Wayland, 73 alt" width="420">
+<img src="assets/xwob/wayland_raw_130_wrapped.png" alt="Wayland, 130 wrapped" width="420">
+
+**X11** (800×600)
+
+<img src="assets/xwob/x11_raw_45.png" alt="X11, 45" width="300">
+<img src="assets/xwob/x11_raw_70_alt.png" alt="X11, 70 alt" width="300">
+<img src="assets/xwob/x11_xob_raw_100.png" alt="X11, 100" width="300">
+<img src="assets/xwob/x11_xob_raw_140_overflow.png" alt="X11, 140 overflow" width="300">
+
+</details>
+
 ## What changed in the forks
 
 * **`NN%` label** on the bar. Each pixel of the text is black or white,
