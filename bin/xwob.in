@@ -21,14 +21,15 @@ Usage: xwob [--backend auto|wayland|x11] [--print-backend] [program options...]
   -h, --help            Show this help.
 
 Everything else is passed to the selected program:
-  x11      (xob fork)   -m <max> -t <timeout ms> -c <config> -s <style> -q
+  x11      (xob fork)   -m <max> -t <timeout ms> -c <config> -q  (-s <style>: legacy xob.cfg)
   wayland  (wob fork)   -c <config> -v (verbose) -V (version)
 
 Input, one value per line on stdin:   <value>   <value>!   <value> <style>
 
-Configuration (picked up automatically unless you pass -c):
-  x11      \${XDG_CONFIG_HOME:-~/.config}/xwob/xob.cfg   then  $sysconfdir/xwob/xob.cfg
-  wayland  \${XDG_CONFIG_HOME:-~/.config}/xwob/wob.ini   then  $sysconfdir/xwob/wob.ini
+Configuration (picked up automatically unless you pass -c), both backends:
+  \${XDG_CONFIG_HOME:-~/.config}/xwob/xwob.ini   then  $sysconfdir/xwob/xwob.ini
+Legacy per-backend files are only used when no xwob.ini exists:
+  x11      xob.cfg      wayland  wob.ini
 USAGE
 }
 
@@ -109,7 +110,9 @@ case "$backend" in
 esac
 [ -x "$prog" ] || die "the $backend backend is not installed (looked for $prog)"
 
-# use ~/.config/xwob/<file> (or /etc) unless a config was given explicitly
+# One config for both backends: xwob.ini (wob.ini format). It is looked up in
+# the user directory, then in the system one. Only when there is none do we
+# fall back to the old per-backend file (wob.ini / xob.cfg).
 have_config=0
 for arg in "$@"; do
 	case "$arg" in
@@ -117,11 +120,13 @@ for arg in "$@"; do
 	esac
 done
 if [ "$have_config" = 0 ]; then
-	for dir in "${XDG_CONFIG_HOME:-$HOME/.config}/xwob" "$sysconfdir/xwob"; do
-		if [ -r "$dir/$cfg_name" ]; then
-			set -- -c "$dir/$cfg_name" "$@"
-			break
-		fi
+	for name in xwob.ini "$cfg_name"; do
+		for dir in "${XDG_CONFIG_HOME:-$HOME/.config}/xwob" "$sysconfdir/xwob"; do
+			if [ -r "$dir/$name" ]; then
+				set -- -c "$dir/$name" "$@"
+				break 2
+			fi
+		done
 	done
 fi
 

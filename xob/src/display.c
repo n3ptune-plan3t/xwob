@@ -424,6 +424,11 @@ Display_context show(Display_context dc, int value, int cap,
 
     Colors colors;
     Colors colors_overflow_proportional;
+    bool overflowing = value > cap;
+
+    /* wrap: 130/100 shows as 30% in the overflow colours, like wob */
+    if (overflowing && overflow_mode == WRAP)
+        value = value % cap;
 
     if (!dc.x.mapped)
     {
@@ -436,7 +441,7 @@ Display_context show(Display_context dc, int value, int cap,
     {
     case NORMAL:
         colors_overflow_proportional = dc.colorscheme.normal;
-        if (value <= cap)
+        if (!overflowing)
             colors = dc.colorscheme.normal;
         else
             colors = dc.colorscheme.overflow;
@@ -444,7 +449,7 @@ Display_context show(Display_context dc, int value, int cap,
 
     case ALTERNATIVE:
         colors_overflow_proportional = dc.colorscheme.alt;
-        if (value <= cap)
+        if (!overflowing)
             colors = dc.colorscheme.alt;
         else
             colors = dc.colorscheme.altoverflow;

@@ -38,20 +38,25 @@ Use the alternative colours ("alt" style).
 .IB value " " style
 (Wayland backend) use a named style from the configuration.
 .SH CONFIGURATION
+Both backends read one file, in the format of wob.ini (see
+.BR xwob\-wayland.ini (5)).
 Unless \fB\-c\fR is given, xwob uses
-.I ~/.config/xwob/xob.cfg
-(X11) or
-.I ~/.config/xwob/wob.ini
-(Wayland), then the same names under the system configuration directory.
-Formats are those of xob (libconfig) and wob (ini); see
-.BR xwob\-x11 (1)
+.I ~/.config/xwob/xwob.ini
+and then
+.IR /etc/xwob/xwob.ini .
+Geometry (\fBwidth\fR, \fBheight\fR, \fBborder_offset\fR, \fBborder_size\fR,
+\fBbar_padding\fR, \fBorientation\fR, \fBanchor\fR, \fBmargin\fR), colours,
+\fBmax\fR, \fBtimeout\fR, \fBoverflow_mode\fR (wrap or nowrap),
+\fBshow_percentage\fR and the \fB[style.alt]\fR section have the same meaning
+on both backends, and the built-in defaults are identical. \fB[output.*]\fR
+sections and named styles other than \fBalt\fR apply to Wayland only.
+.PP
+The old per-backend files
+.I wob.ini
 and
-.BR xwob\-wayland (1).
-Both support
-.B percentage = true
-/
-.B show_percentage = yes
-to control the label.
+.I xob.cfg
+are used only when no xwob.ini exists. Options \fB\-m\fR and \fB\-t\fR of the X11
+backend override \fBmax\fR and \fBtimeout\fR from the file.
 .SH SYSTEMD
 Install and enable the socket; systemd then starts xwob on the first write:
 .PP

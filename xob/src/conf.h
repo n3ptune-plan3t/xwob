@@ -52,8 +52,9 @@ typedef struct
 
 typedef enum
 {
-    HIDDEN,
-    PROPORTIONAL
+    HIDDEN,       /* nowrap: bar stays full, overflow colours */
+    PROPORTIONAL, /* xob.cfg only */
+    WRAP          /* value % max, overflow colours (wob's default) */
 } Overflow_mode;
 
 typedef enum

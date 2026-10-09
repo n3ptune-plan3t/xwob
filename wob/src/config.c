@@ -251,6 +251,12 @@ handler(void *user, const char *section, const char *name, const char *value)
 				wob_log_error("Background color must be in RRGGBB[AA] format");
 				return 0;
 			}
+			struct wob_style *s;
+			wl_list_for_each (s, &config->styles, link) {
+				if (!s->background_explicit) {
+					s->colors.background = config->default_style.colors.background;
+				}
+			}
 			return 1;
 		}
 		if (strcmp(name, "border_color") == 0) {
@@ -271,6 +277,12 @@ handler(void *user, const char *section, const char *name, const char *value)
 			if (!parse_color(value, &config->default_style.overflow_colors.background)) {
 				wob_log_error("Overflow background color must be in RRGGBB[AA] format.");
 				return 0;
+			}
+			struct wob_style *s;
+			wl_list_for_each (s, &config->styles, link) {
+				if (!s->overflow_background_explicit) {
+					s->overflow_colors.background = config->default_style.overflow_colors.background;
+				}
 			}
 			return 1;
 		}
@@ -427,6 +439,7 @@ handler(void *user, const char *section, const char *name, const char *value)
 				wob_log_error("Background color must be in RRGGBB[AA] format");
 				return 0;
 			}
+			style->background_explicit = true;
 			return 1;
 		}
 		if (strcmp(name, "border_color") == 0) {
@@ -448,6 +461,7 @@ handler(void *user, const char *section, const char *name, const char *value)
 				wob_log_error("Overflow background color must be in RRGGBB[AA] format.");
 				return 0;
 			}
+			style->overflow_background_explicit = true;
 			return 1;
 		}
 		if (strcmp(name, "overflow_border_color") == 0) {
@@ -477,6 +491,11 @@ char *
 wob_config_default_path()
 {
 	static const char *config_paths[] = {
+		/* unified xwob.ini, shared with the X11 backend */
+		"$XDG_CONFIG_HOME/xwob/xwob.ini",
+		"$HOME/.config/xwob/xwob.ini",
+		WOB_ETC_CONFIG_FOLDER_PATH "/xwob/xwob.ini",
+		/* legacy wob locations */
 		"$XDG_CONFIG_HOME/wob/wob.ini",
 		"$HOME/.config/wob/wob.ini",
 		WOB_ETC_CONFIG_FOLDER_PATH "/wob.ini",
@@ -524,25 +543,25 @@ wob_config_create()
 	config->margin = (struct wob_margin) {.top = 0, .left = 0, .bottom = 0, .right = 0};
 	config->anchor = WOB_ANCHOR_CENTER;
 	config->overflow_mode = WOB_OVERFLOW_MODE_WRAP;
-	config->default_style.colors.background = (struct wob_color) {.a = 1.0f, .r = 0.0f, .g = 0.0f, .b = 0.0f};
-	config->default_style.colors.value = (struct wob_color) {.a = 1.0f, .r = 1.0f, .g = 1.0f, .b = 1.0f};
-	config->default_style.colors.border = (struct wob_color) {.a = 1.0f, .r = 1.0f, .g = 1.0f, .b = 1.0f};
-	config->default_style.overflow_colors.background = (struct wob_color) {.a = 1.0f, .r = 0.0f, .g = 0.0f, .b = 0.0f};
-	config->default_style.overflow_colors.value = (struct wob_color) {.a = 1.0f, .r = 1.0f, .g = 0.0f, .b = 0.0f};
-	config->default_style.overflow_colors.border = (struct wob_color) {.a = 1.0f, .r = 1.0f, .g = 1.0f, .b = 1.0f};
+	/* Keep these colours identical to cfg_defaults() in xob/src/iniconf.c */
+	struct wob_color bg = {.a = 0x90 / 255.0f, .r = 0.0f, .g = 0.0f, .b = 0.0f};
+	struct wob_color white = {.a = 1.0f, .r = 1.0f, .g = 1.0f, .b = 1.0f};
+	struct wob_color red = {.a = 1.0f, .r = 1.0f, .g = 0.0f, .b = 0.0f};
+	config->default_style.colors = (struct wob_colors) {.background = bg, .value = white, .border = white};
+	config->default_style.overflow_colors = (struct wob_colors) {.background = bg, .value = red, .border = red};
 
 	/* Built-in "alt" style: selected by a trailing "!" on input ("50!", as in
-	 * xob) or by "50 alt". Redefine it with a [style.alt] section. */
+	 * xob) or by "50 alt". Redefine it with a [style.alt] section; its
+	 * backgrounds follow the global ones unless it sets its own. */
 	struct wob_style *alt = calloc(1, sizeof(struct wob_style));
 	if (alt == NULL) {
 		wob_log_panic("calloc() failed");
 	}
 	alt->name = strdup("alt");
-	alt->colors = config->default_style.colors;
-	alt->colors.border = (struct wob_color) {.a = 1.0f, .r = 0.333f, .g = 0.333f, .b = 0.333f};
-	alt->colors.value = alt->colors.border;
-	alt->overflow_colors = alt->colors;
-	alt->overflow_colors.value = (struct wob_color) {.a = 1.0f, .r = 0.333f, .g = 0.0f, .b = 0.0f};
+	struct wob_color gray = {.a = 1.0f, .r = 0x55 / 255.0f, .g = 0x55 / 255.0f, .b = 0x55 / 255.0f};
+	struct wob_color dark_red = {.a = 1.0f, .r = 0x55 / 255.0f, .g = 0.0f, .b = 0.0f};
+	alt->colors = (struct wob_colors) {.background = bg, .value = gray, .border = gray};
+	alt->overflow_colors = (struct wob_colors) {.background = bg, .value = dark_red, .border = dark_red};
 	wl_list_insert(&config->styles, &alt->link);
 
 	return config;

@@ -51,14 +51,13 @@ install: all
 ifeq ($(WITH_X11),yes)
 	install -Dm755 xob/xob $(DESTDIR)$(libexecdir)/xwob/xwob-x11
 	install -Dm644 xob/doc/xob.1 $(DESTDIR)$(mandir)/man1/xwob-x11.1
-	install -Dm644 xob/styles.cfg $(DESTDIR)$(sysconfdir)/xwob/xob.cfg
 endif
 ifeq ($(WITH_WAYLAND),yes)
 	install -Dm755 wob/build/wob $(DESTDIR)$(libexecdir)/xwob/xwob-wayland
 	@[ ! -f wob/build/wob.1 ] || install -Dm644 wob/build/wob.1 $(DESTDIR)$(mandir)/man1/xwob-wayland.1
 	@[ ! -f wob/build/wob.ini.5 ] || install -Dm644 wob/build/wob.ini.5 $(DESTDIR)$(mandir)/man5/xwob-wayland.ini.5
-	install -Dm644 examples/wob.ini $(DESTDIR)$(sysconfdir)/xwob/wob.ini
 endif
+	install -Dm644 examples/xwob.ini $(DESTDIR)$(sysconfdir)/xwob/xwob.ini
 ifeq ($(WITH_SYSTEMD),yes)
 	install -Dm644 systemd/xwob.socket $(DESTDIR)$(unitdir)/xwob.socket
 	sed 's#@bindir@#$(bindir)#g' systemd/xwob.service.in > systemd/xwob.service

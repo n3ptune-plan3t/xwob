@@ -65,6 +65,9 @@ struct wob_style {
 	char *name;
 	struct wob_colors colors;
 	struct wob_colors overflow_colors;
+	/* the style sets its own background, so it no longer follows the global one */
+	bool background_explicit;
+	bool overflow_background_explicit;
 	struct wl_list link;
 };
 

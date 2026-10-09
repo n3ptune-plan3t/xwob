@@ -2,7 +2,7 @@ PROGRAM = xob
 MANPAGE = doc/xob.1
 SYSCONF = styles.cfg
 LIBS    = x11 libconfig
-SOURCES = src/conf.c src/display.c src/main.c src/osdtext.c
+SOURCES = src/conf.c src/iniconf.c src/display.c src/main.c src/osdtext.c
 
 # Feature: alpha channel (transparency)
 enable_alpha ?= yes
@@ -56,9 +56,10 @@ clean:
 	rm -f $(PROGRAM)
 
 src/conf.o: src/conf.h
+src/iniconf.o: src/iniconf.h src/conf.h
 src/display.o: src/display.h src/conf.h src/osdtext.h
 src/osdtext.o: src/osdtext.h src/glyphs.inc
-src/main.o: src/main.h src/display.h src/conf.h
+src/main.o: src/main.h src/display.h src/conf.h src/iniconf.h
 src/xlib.o: src/display.h
 src/xrender.o: src/display.h
 

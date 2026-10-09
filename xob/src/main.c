@@ -20,6 +20,7 @@
 #include "main.h"
 #include "conf.h"
 #include "display.h"
+#include "iniconf.h"
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,6 +32,8 @@ int main(int argc, char *argv[])
 {
     int cap = 100;
     int timeout = 1000;
+    bool cap_from_cli = false;
+    bool timeout_from_cli = false;
 
     char *arg_config_file_path = NULL;
     char *style_name = DEFAULT_STYLE;
@@ -43,6 +46,7 @@ int main(int argc, char *argv[])
         {
         case 'm':
             cap = atoi(optarg);
+            cap_from_cli = true;
             if (cap <= 0)
             {
                 fprintf(
@@ -53,6 +57,7 @@ int main(int argc, char *argv[])
             break;
         case 't':
             timeout = atoi(optarg);
+            timeout_from_cli = true;
             if (timeout < 0)
             {
                 fprintf(stderr, "Invalid timeout: must be a natural number.\n");
@@ -109,17 +114,14 @@ int main(int argc, char *argv[])
 
     /* Style */
     FILE *config_file = NULL;
-    Style style = DEFAULT_CONFIGURATION;
-    char xdg_config_file_path[PATH_MAX];
+    Style style = unified_default_style();
     char real_config_file_path[PATH_MAX];
 
     /* Case #1: config file in argument */
     if (arg_config_file_path != NULL)
     {
         if (realpath(arg_config_file_path, real_config_file_path) != NULL)
-        {
             config_file = fopen(real_config_file_path, "r");
-        }
         else
         {
             fprintf(stderr,
@@ -129,50 +131,69 @@ int main(int argc, char *argv[])
         }
     }
 
-    /* Case #2: the XDG_CONFIG_HOME environment variable is set */
-    if (config_file == NULL && getenv("XDG_CONFIG_HOME") != NULL)
+    /* Cases #2-#4: the unified xwob.ini shared with the Wayland backend,
+     * then the legacy xob styles.cfg. In each, the user directory
+     * ($XDG_CONFIG_HOME, else ~/.config) comes before the system one. */
+    if (config_file == NULL)
     {
-        if (snprintf(xdg_config_file_path, PATH_MAX, "%s/%s/%s",
-                     getenv("XDG_CONFIG_HOME"), DEFAULT_CONFIG_APPNAME,
-                     DEFAULT_CONFIG_FILENAME) < PATH_MAX)
+        static const char *const names[][2] = {
+            {UNIFIED_CONFIG_APPNAME, UNIFIED_CONFIG_FILENAME},
+            {DEFAULT_CONFIG_APPNAME, DEFAULT_CONFIG_FILENAME}};
+        const char *xdg = getenv("XDG_CONFIG_HOME");
+        const char *home = getenv("HOME");
+        char candidate[PATH_MAX];
+
+        for (size_t i = 0; i < 2 && config_file == NULL; i++)
         {
-            if (realpath(xdg_config_file_path, real_config_file_path) != NULL)
+            for (int where = 0; where < 3 && config_file == NULL; where++)
             {
-                config_file = fopen(real_config_file_path, "r");
+                int n = -1;
+                if (where == 0 && xdg != NULL && *xdg != '\0')
+                    n = snprintf(candidate, PATH_MAX, "%s/%s/%s", xdg,
+                                 names[i][0], names[i][1]);
+                else if (where == 1 && home != NULL)
+                    n = snprintf(candidate, PATH_MAX, "%s/.config/%s/%s", home,
+                                 names[i][0], names[i][1]);
+                else if (where == 2)
+                    n = snprintf(candidate, PATH_MAX, "%s/%s/%s", SYSCONFDIR,
+                                 names[i][0], names[i][1]);
+                if (n > 0 && n < PATH_MAX &&
+                    realpath(candidate, real_config_file_path) != NULL)
+                    config_file = fopen(real_config_file_path, "r");
             }
         }
     }
 
-    /* Case #3: falling back to default configuration directory */
-    if (config_file == NULL)
-    {
-        if (snprintf(xdg_config_file_path, PATH_MAX, "%s/.config/%s/%s",
-                     getenv("HOME"), DEFAULT_CONFIG_APPNAME,
-                     DEFAULT_CONFIG_FILENAME) < PATH_MAX)
-        {
-            if (realpath(xdg_config_file_path, real_config_file_path) != NULL)
-            {
-                config_file = fopen(real_config_file_path, "r");
-            }
-        }
-    }
-
-    /* Case #4: system wide configuration */
-    if (config_file == NULL)
-    {
-        if (realpath(SYSCONFDIR "/" DEFAULT_CONFIG_APPNAME
-                                "/" DEFAULT_CONFIG_FILENAME,
-                     real_config_file_path) != NULL)
-        {
-            config_file = fopen(real_config_file_path, "r");
-        }
-    }
-
-    /* Parsing the config file (none found: keep the built-in defaults) */
+    /* Parsing the config file (none found: keep the built-in defaults).
+     * *.cfg is the legacy libconfig format; anything else is xwob.ini. */
     if (config_file != NULL)
     {
-        printf("Info: reading configuration from %s.\n", real_config_file_path);
-        style = parse_style_config(config_file, style_name, style);
+        size_t len = strlen(real_config_file_path);
+        bool legacy = len >= 4 && strcmp(real_config_file_path + len - 4,
+                                         ".cfg") == 0;
+        printf("Info: reading configuration from %s.\n",
+               real_config_file_path);
+        if (legacy)
+        {
+            style = parse_style_config(config_file, style_name,
+                                       DEFAULT_CONFIGURATION);
+        }
+        else
+        {
+            int file_cap = cap, file_timeout = timeout;
+            bool ok = parse_unified_config(config_file, real_config_file_path,
+                                           &style, &file_cap, &file_timeout);
+            if (!ok)
+            {
+                fclose(config_file);
+                exit(EXIT_FAILURE);
+            }
+            /* command-line -m and -t win over the file */
+            if (!cap_from_cli)
+                cap = file_cap;
+            if (!timeout_from_cli)
+                timeout = file_timeout;
+        }
         fclose(config_file);
     }
     else

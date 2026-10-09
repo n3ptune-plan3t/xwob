@@ -15,8 +15,9 @@ echo 50 | xwob
 | Wayland (`WAYLAND_DISPLAY` set) | fork of [wob](https://github.com/francma/wob) | `wob/` |
 | X11 (`DISPLAY` set)             | fork of [xob](https://github.com/florentc/xob) | `xob/` |
 
-The two forks stay separate programs with their own config format; xwob adds a
-small launcher, a single systemd socket/service, and one build. Input on stdin
+The two forks stay separate programs, but they read **one shared config file**,
+`xwob.ini`, so the bar has the same size, position and colours on both. xwob adds
+a small launcher, a single systemd socket/service, and one build. Input on stdin
 and all options are handed to the program that gets started.
 
 ## Screenshots
@@ -88,7 +89,7 @@ in-range portion):
   Horizontal bars show `45%`; **vertical bars stack the characters upright, one
   per line** (`4`, `5`, `%`).
   Built-in vector font: no font files, no FreeType (wob runs under seccomp).
-  Turn off with `percentage = false;` (xob.cfg) / `show_percentage = no` (wob.ini).
+  Turn off with `show_percentage = no` (xwob.ini; `percentage = false;` in a legacy xob.cfg).
 * **xob:** fixed a crash when no config file exists anywhere (it now uses the
   built-in defaults).
 * **wob:** understands xob's `50!` shorthand (uses a built-in `alt` style, which
@@ -124,10 +125,57 @@ xwob [-b auto|wayland|x11] [--print-backend] [backend options...]
 * `-b x11` / `XWOB_BACKEND=x11` forces a backend. Use it on a Wayland compositor
   that has no `wlr-layer-shell` (GNOME) to go through XWayland. Under XWayland
   both variables are set and `auto` prefers Wayland.
-* Config is picked up automatically from `~/.config/xwob/xob.cfg` (X11) and
-  `~/.config/xwob/wob.ini` (Wayland), then `/etc/xwob/`. `-c file` overrides.
-  Formats are xob's (libconfig) and wob's (ini); see `examples/wob.ini`,
-  `xob/styles.cfg`, `man xwob-x11`, `man xwob-wayland.ini`.
+* Config: one file for both backends, `~/.config/xwob/xwob.ini` (then
+  `/etc/xwob/xwob.ini`); `-c file` overrides. Start from `examples/xwob.ini`.
+  See [Configuration](#configuration).
+
+## Configuration
+
+`xwob.ini` uses wob's ini format and keys (`man xwob-wayland.ini`). The X11
+backend reads it natively, so there is no second file to keep in sync:
+
+```ini
+width = 400            # size of the whole bar, also for vertical bars
+height = 50
+border_offset = 4      # gap outside the border
+border_size = 4
+bar_padding = 4
+orientation = horizontal
+anchor = bottom        # top/bottom/left/right/center
+margin = 100
+bar_color = ffffff
+background_color = 00000090
+overflow_mode = wrap   # wrap | nowrap
+show_percentage = yes
+[style.alt]            # used by "50!" and "50 alt"
+bar_color = 555555
+```
+
+Everything also applies to X11: `width`/`height`/`border_*`/`bar_padding` map onto
+xob's `length`/`thickness`/`outline`/`border`/`padding`, `anchor` + `margin` onto
+its `x`/`y` position, and `max`/`timeout` replace `-m`/`-t` (the command-line
+flags still win). The built-in defaults are identical on both backends.
+
+Only these are Wayland-only and ignored on X11: `[output.*]` sections (per-monitor
+overrides) and named styles other than `alt`.
+
+**Migrating:** the old per-backend files (`wob.ini`, `xob.cfg`) are still read,
+but only when no `xwob.ini` exists. A `wob.ini` works as `xwob.ini` unchanged;
+a legacy `xob.cfg` (libconfig) has to be translated by hand:
+
+| xob.cfg | xwob.ini |
+|---------|----------|
+| `length`, `thickness` | `width`, `height` (outer size = inner size + 2 × (`border_offset` + `border_size` + `bar_padding`)) |
+| `outline`, `border`, `padding` | `border_offset`, `border_size`, `bar_padding` |
+| `x`, `y` (`relative` + `offset`) | `anchor` + `margin` |
+| `color.normal.{fg,bg,border}` | `bar_color`, `background_color`, `border_color` |
+| `color.overflow.*` | `overflow_bar_color`, `overflow_background_color`, `overflow_border_color` |
+| `color.alt` / `color.altoverflow` | `[style.alt]` (`bar_color`… / `overflow_bar_color`…) |
+| `percentage` | `show_percentage` |
+| `-m`, `-t` flags | `max`, `timeout` |
+
+The xob-specific `overflow = "proportional"` exists only in
+`xob.cfg`; the shared file has `overflow_mode = wrap | nowrap`.
 
 ## systemd (the same way wob does it)
 
@@ -158,7 +206,7 @@ tail -f "$XDG_RUNTIME_DIR/xwob.sock" | xwob &
 ## Notes
 
 * seccomp sandboxing is wob's and applies to the Wayland backend only.
-* Layout and colours differ between the backends because they keep their own
-  config: xob positions with `x`/`y`/`length`/`thickness`, wob with
-  `anchor`/`margin`/`width`/`height`.
+* Both backends are driven by the same `xwob.ini`. Differences that remain are
+  the compositor's: Wayland has per-output sections and fractional scaling,
+  X11 has neither, and X11 transparency needs a compositor.
 * Licensing: see `LICENSE.md` (xob is GPL-3.0, wob is ISC).
