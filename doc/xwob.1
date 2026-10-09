@@ -1,0 +1,68 @@
+.TH XWOB 1 "2026" "xwob" "xwob Manual"
+.SH NAME
+xwob \- overlay volume/backlight/progress bar for Wayland and X11
+.SH SYNOPSIS
+.B xwob
+[\fB\-b\fR \fIbackend\fR] [\fB\-\-print\-backend\fR] [\fIoptions\fR...]
+.SH DESCRIPTION
+.B xwob
+is one command that shows an overlay bar in either kind of session. Inside a
+Wayland session it runs the Wayland backend (a fork of wob); inside an X11
+session it runs the X11 backend (a fork of xob). Both read values from standard
+input, one per line, and draw them on a bar with a percentage label whose text
+is black or white depending on what it sits on.
+.PP
+Standard input and all options after xwob's own are passed to the selected
+program unchanged.
+.SH OPTIONS
+.TP
+.BR \-b ", " \-\-backend " " \fIauto\fR|\fIwayland\fR|\fIx11\fR
+Force a backend. The default is \fIauto\fR (or $XWOB_BACKEND): Wayland when
+WAYLAND_DISPLAY is set, otherwise X11 when DISPLAY is set. Use \fIx11\fR on a
+Wayland compositor without wlr-layer-shell (for example GNOME) to go through
+XWayland.
+.TP
+.B \-\-print\-backend
+Print the backend that would be used and exit.
+.TP
+.BR \-h ", " \-\-help
+Show help.
+.SH INPUT
+.TP
+.I value
+Show the value.
+.TP
+.IB value !
+Use the alternative colours ("alt" style).
+.TP
+.IB value " " style
+(Wayland backend) use a named style from the configuration.
+.SH CONFIGURATION
+Unless \fB\-c\fR is given, xwob uses
+.I ~/.config/xwob/xob.cfg
+(X11) or
+.I ~/.config/xwob/wob.ini
+(Wayland), then the same names under the system configuration directory.
+Formats are those of xob (libconfig) and wob (ini); see
+.BR xwob\-x11 (1)
+and
+.BR xwob\-wayland (1).
+Both support
+.B percentage = true
+/
+.B show_percentage = yes
+to control the label.
+.SH SYSTEMD
+Install and enable the socket; systemd then starts xwob on the first write:
+.PP
+.nf
+systemctl --user enable --now xwob.socket
+systemctl --user import-environment WAYLAND_DISPLAY DISPLAY XAUTHORITY
+echo 50 > $XDG_RUNTIME_DIR/xwob.sock
+.fi
+.PP
+Stop it with \fBsystemctl --user stop xwob.service\fR (or \fBxwob.socket\fR to
+stop listening as well).
+.SH SEE ALSO
+.BR xwob\-x11 (1),
+.BR xwob\-wayland (1)

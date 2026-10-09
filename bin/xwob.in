@@ -1,0 +1,128 @@
+#!/bin/sh
+# xwob - one command for X11 and Wayland.
+#
+# Starts the Wayland overlay bar (wob fork) inside a Wayland session and the
+# X11 one (xob fork) inside an X11 session. Standard input and every other
+# argument are handed to the program that gets started, so
+#
+#     echo 50 | xwob          # shows 50% on whichever session you are in
+#
+# works the same everywhere. Run `xwob --help` for details.
+
+libexecdir='@libexecdir@'
+sysconfdir='@sysconfdir@'
+
+usage() {
+	cat << USAGE
+Usage: xwob [--backend auto|wayland|x11] [--print-backend] [program options...]
+
+  -b, --backend <name>  Force a backend (default: auto, or \$XWOB_BACKEND).
+      --print-backend   Print the backend that would be used and exit.
+  -h, --help            Show this help.
+
+Everything else is passed to the selected program:
+  x11      (xob fork)   -m <max> -t <timeout ms> -c <config> -s <style> -q
+  wayland  (wob fork)   -c <config> -v (verbose) -V (version)
+
+Input, one value per line on stdin:   <value>   <value>!   <value> <style>
+
+Configuration (picked up automatically unless you pass -c):
+  x11      \${XDG_CONFIG_HOME:-~/.config}/xwob/xob.cfg   then  $sysconfdir/xwob/xob.cfg
+  wayland  \${XDG_CONFIG_HOME:-~/.config}/xwob/wob.ini   then  $sysconfdir/xwob/wob.ini
+USAGE
+}
+
+die() {
+	echo "xwob: $*" >&2
+	exit 1
+}
+
+backend="${XWOB_BACKEND:-auto}"
+print_backend=0
+
+# xwob's own options must come first; the rest belongs to the backend
+while [ $# -gt 0 ]; do
+	case "$1" in
+		-b | --backend)
+			[ $# -ge 2 ] || die "$1 needs an argument"
+			backend="$2"
+			shift 2
+			;;
+		--backend=*)
+			backend="${1#--backend=}"
+			shift
+			;;
+		--print-backend)
+			print_backend=1
+			shift
+			;;
+		-h | --help)
+			usage
+			exit 0
+			;;
+		*) break ;;
+	esac
+done
+
+case "$backend" in
+	auto | wayland | x11) ;;
+	xorg) backend=x11 ;;
+	*) die "unknown backend '$backend' (use auto, wayland or x11)" ;;
+esac
+
+if [ "$backend" = auto ]; then
+	# Wayland first: under XWayland both variables are set and the native
+	# overlay is the better choice. Force x11 if your compositor has no
+	# wlr-layer-shell (e.g. GNOME).
+	if [ -n "$WAYLAND_DISPLAY" ]; then
+		backend=wayland
+	elif [ -n "$DISPLAY" ]; then
+		backend=x11
+	else
+		case "$XDG_SESSION_TYPE" in
+			wayland) backend=wayland ;;
+			x11) backend=x11 ;;
+			*) die "no display found: neither WAYLAND_DISPLAY nor DISPLAY is set (under systemd, run: systemctl --user import-environment WAYLAND_DISPLAY DISPLAY XAUTHORITY)" ;;
+		esac
+	fi
+fi
+
+if [ "$print_backend" = 1 ]; then
+	echo "$backend"
+	exit 0
+fi
+
+here=$(cd "$(dirname "$0")" 2> /dev/null && pwd)
+
+# installed location first, then the source tree (so ./bin/xwob works unbuilt)
+case "$backend" in
+	wayland)
+		prog="$libexecdir/xwob/xwob-wayland"
+		[ -x "$prog" ] || prog="$here/../wob/build/wob"
+		cfg_name=wob.ini
+		;;
+	x11)
+		prog="$libexecdir/xwob/xwob-x11"
+		[ -x "$prog" ] || prog="$here/../xob/xob"
+		cfg_name=xob.cfg
+		;;
+esac
+[ -x "$prog" ] || die "the $backend backend is not installed (looked for $prog)"
+
+# use ~/.config/xwob/<file> (or /etc) unless a config was given explicitly
+have_config=0
+for arg in "$@"; do
+	case "$arg" in
+		-c | -c?* | --config | --config=*) have_config=1 ;;
+	esac
+done
+if [ "$have_config" = 0 ]; then
+	for dir in "${XDG_CONFIG_HOME:-$HOME/.config}/xwob" "$sysconfdir/xwob"; do
+		if [ -r "$dir/$cfg_name" ]; then
+			set -- -c "$dir/$cfg_name" "$@"
+			break
+		fi
+	done
+fi
+
+exec "$prog" "$@"

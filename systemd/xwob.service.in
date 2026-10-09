@@ -1,0 +1,16 @@
+[Unit]
+Description=Overlay volume/backlight/progress/anything bar for Wayland and X11
+Documentation=man:xwob(1)
+PartOf=graphical-session.target
+After=graphical-session.target
+# Needs a display: either Wayland or X11 (a leading | means "any of these")
+ConditionEnvironment=|WAYLAND_DISPLAY
+ConditionEnvironment=|DISPLAY
+
+[Service]
+StandardInput=socket
+StandardOutput=journal
+ExecStart=@bindir@/xwob
+
+[Install]
+WantedBy=graphical-session.target

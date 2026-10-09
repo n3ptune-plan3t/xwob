@@ -1,0 +1,13 @@
+[Unit]
+Description=Input FIFO for xwob (overlay bar for Wayland and X11)
+Documentation=man:xwob(1)
+
+[Socket]
+ListenFIFO=%t/xwob.sock
+SocketMode=0600
+RemoveOnStop=on
+# If xwob exits on invalid input, systemd should NOT shove following input right back into it after it restarts
+FlushPending=yes
+
+[Install]
+WantedBy=sockets.target
