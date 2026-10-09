@@ -21,11 +21,22 @@ and all options are handed to the program that gets started.
 
 ## Screenshots
 
-Vertical bars stack the characters upright, one per line. Each pixel of the
-label is black or white depending on what is under it, so a label that crosses
-the fill edge flips colour right at the edge (see `45%` below).
+Each pixel of the label is black or white depending on what is under it, so a
+label that crosses the fill edge flips colour right at the edge (see `45%` and
+`50%` below). Vertical bars stack the characters upright, one per line;
+horizontal bars show the label on one line.
 
-### Wayland (wob fork)
+### Horizontal bar
+
+Rendered with the default `400×50` size at `0%`, `37%`, `100%`, a translucent
+blue style at `50%`, and a light style at `62%`. The label stays readable on
+dark, light and coloured fills, and flips colour where it crosses the fill edge.
+
+<p align="center">
+  <img src="assets/xwob/wob_horizontal_render.png" alt="Horizontal bars: 0%, 37%, 100%, 50% on a blue style, 62% on a light style" width="415">
+</p>
+
+### Wayland (wob fork) (Vertical bar)
 
 `xwob` running in a Wayland session (headless sway). Inputs, left to right:
 `45`, `73!` (alt style, gray), `130` (wraps to 30% and switches to the overflow
@@ -35,7 +46,7 @@ colour).
   <img src="assets/xwob/wayland_xwob_45_73alt_130_cropped.png" alt="xwob on Wayland: 45%, 73% alt style, 130% wrapped to 30% in overflow colour" width="360">
 </p>
 
-### X11 (xob fork)
+### X11 (xob fork) (Vertical bar)
 
 `xwob` running in an X11 session. Inputs, left to right: `45`, `70!` (alt style).
 
