@@ -25,6 +25,12 @@ XWayland.
 .B \-\-print\-backend
 Print the backend that would be used and exit.
 .TP
+.B \-\-reload
+Make running bars re-read the configuration now: the backends of all of your
+running xwob instances are restarted by their launcher with a freshly read
+xwob.ini. No logout needed. Only the installed backends
+(\fIxwob-x11\fR, \fIxwob-wayland\fR) are signalled.
+.TP
 .BR \-h ", " \-\-help
 Show help.
 .SH INPUT
@@ -69,5 +75,6 @@ echo 50 > $XDG_RUNTIME_DIR/xwob.sock
 Stop it with \fBsystemctl --user stop xwob.service\fR (or \fBxwob.socket\fR to
 stop listening as well).
 .SH SEE ALSO
+.BR xwob\-settings (1),
 .BR xwob\-x11 (1),
 .BR xwob\-wayland (1)

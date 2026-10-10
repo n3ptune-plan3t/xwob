@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=xwob settings
+Comment=Configure the volume/brightness overlay bar for X11 and Wayland
+Exec=xwob-settings
+Icon=preferences-desktop
+Terminal=false
+Categories=Settings;DesktopSettings;Qt;
+Keywords=osd;volume;brightness;bar;wob;xob;

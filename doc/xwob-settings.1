@@ -1,0 +1,36 @@
+.TH XWOB-SETTINGS 1 "2026" "xwob" "xwob Manual"
+.SH NAME
+xwob-settings \- graphical settings for the xwob overlay bar
+.SH SYNOPSIS
+.B xwob-settings
+[\fB\-c\fR \fIfile\fR]
+.SH DESCRIPTION
+Edits the one configuration file read by both xwob backends (X11 and Wayland),
+.I ~/.config/xwob/xwob.ini
+by default. Layout, colours (with transparency) and behaviour are on three
+tabs.
+.PP
+.B Live
+shows the bar with the settings currently in the window, saved or not, on a
+temporary copy of the configuration. The slider and the
+.B Alt
+box choose what value is shown.
+.PP
+.B Apply
+writes the file and runs
+.BR "xwob \-\-reload" ,
+so bars that are already running pick up the new settings at once; no
+logout or restart is needed. Unknown keys and Wayland-only sections
+(\fB[output.*]\fR, extra \fB[style.*]\fR) already in the file are kept, but
+comments next to the keys the window edits are not.
+.SH OPTIONS
+.TP
+.BR \-c ", " \-\-config " " \fIfile\fR
+Edit this file instead of the default.
+.SH ENVIRONMENT
+.TP
+.B XWOB_BIN
+The xwob launcher used for preview and reload (default: the one next to
+xwob-settings, then PATH).
+.SH SEE ALSO
+.BR xwob (1)

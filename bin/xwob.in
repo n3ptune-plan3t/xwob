@@ -15,9 +15,11 @@ sysconfdir='@sysconfdir@'
 usage() {
 	cat << USAGE
 Usage: xwob [--backend auto|wayland|x11] [--print-backend] [program options...]
+       xwob --reload
 
   -b, --backend <name>  Force a backend (default: auto, or \$XWOB_BACKEND).
       --print-backend   Print the backend that would be used and exit.
+      --reload          Make running xwob bars re-read xwob.ini now (no logout needed).
   -h, --help            Show this help.
 
 Everything else is passed to the selected program:
@@ -38,6 +40,28 @@ die() {
 	exit 1
 }
 
+# Live reload: the backends read their config once at start (wob runs in a
+# seccomp sandbox and cannot reopen files), so a reload is SIGHUP to the
+# running backend, which exits; the supervisor loop at the bottom of this
+# script then starts it again with the new config. Only installed backend
+# names are signalled, never a distribution's own xob/wob.
+reload_backends() {
+	n=0
+	for comm in /proc/[0-9]*/comm; do
+		pid=${comm#/proc/}
+		pid=${pid%/comm}
+		read -r name < "$comm" 2> /dev/null || continue
+		case "$name" in
+			xwob-x11 | xwob-wayland)
+				if [ -O "/proc/$pid" ] && kill -HUP "$pid" 2> /dev/null; then
+					n=$((n + 1))
+				fi
+				;;
+		esac
+	done
+	echo "xwob: reloaded $n running bar(s)" >&2
+}
+
 backend="${XWOB_BACKEND:-auto}"
 print_backend=0
 
@@ -56,6 +80,10 @@ while [ $# -gt 0 ]; do
 		--print-backend)
 			print_backend=1
 			shift
+			;;
+		--reload)
+			reload_backends
+			exit 0
 			;;
 		-h | --help)
 			usage
@@ -119,15 +147,39 @@ for arg in "$@"; do
 		-c | -c?* | --config | --config=*) have_config=1 ;;
 	esac
 done
-if [ "$have_config" = 0 ]; then
+
+find_config() {
+	cfg=
 	for name in xwob.ini "$cfg_name"; do
 		for dir in "${XDG_CONFIG_HOME:-$HOME/.config}/xwob" "$sysconfdir/xwob"; do
 			if [ -r "$dir/$name" ]; then
-				set -- -c "$dir/$name" "$@"
-				break 2
+				cfg="$dir/$name"
+				return 0
 			fi
 		done
 	done
-fi
+	return 1
+}
 
-exec "$prog" "$@"
+child=
+trap '[ -n "$child" ] && kill "$child" 2> /dev/null; exit 143' TERM
+trap '[ -n "$child" ] && kill "$child" 2> /dev/null; exit 130' INT
+
+# Supervisor: the backend runs as a child so that `xwob --reload` (SIGHUP to
+# the backend, exit status 129) restarts it with a freshly read config.
+# Standard input is handed over unchanged; any other exit ends xwob.
+# a background job gets /dev/null as stdin, so keep the real one on fd 3
+exec 3<&0
+
+while :; do
+	if [ "$have_config" = 0 ] && find_config; then
+		"$prog" -c "$cfg" "$@" <&3 3<&- &
+	else
+		"$prog" "$@" <&3 3<&- &
+	fi
+	child=$!
+	wait "$child"
+	rc=$?
+	child=
+	[ "$rc" -eq 129 ] || exit "$rc"
+done

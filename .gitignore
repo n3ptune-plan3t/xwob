@@ -1,0 +1,4 @@
+bin/xwob
+systemd/xwob.service
+gui/xwob-settings
+wob/build/

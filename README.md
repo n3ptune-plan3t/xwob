@@ -100,11 +100,13 @@ in-range portion):
 Dependencies: a C compiler, `make`, plus
 * X11 backend: `libx11`, `libxrender`, `libconfig`
 * Wayland backend: `meson`, `ninja`, `wayland`, `wayland-protocols`, `inih`, optionally `libseccomp`, `scdoc` (man pages)
+* Settings GUI (optional): a C++17 compiler and `Qt6Widgets` (`qt6-base-dev` / `qt6-qtbase-devel`)
 
 ```
 make                      # both backends
 make WITH_X11=no          # Wayland only
 make WITH_WAYLAND=no      # X11 only
+make WITH_GUI=no           # without the Qt6 settings GUI
 sudo make install PREFIX=/usr sysconfdir=/etc
 ```
 
@@ -176,6 +178,38 @@ a legacy `xob.cfg` (libconfig) has to be translated by hand:
 
 The xob-specific `overflow = "proportional"` exists only in
 `xob.cfg`; the shared file has `overflow_mode = wrap | nowrap`.
+
+## Settings GUI and live reload
+
+`xwob-settings` is a small Qt6 window for `xwob.ini`, so you don't have to edit
+the file by hand:
+
+<p align="center">
+  <img src="assets/xwob/settings_gui.png" alt="xwob-settings window: layout tab with a live preview slider" width="330">
+</p>
+
+* **Live** (on by default) shows the bar on screen with the settings currently
+  in the window, saved or not, so you see the result while you edit. The slider
+  and **Alt** box choose the value shown.
+* **Apply** (Ctrl+S) writes `~/.config/xwob/xwob.ini` and reloads the bars that
+  are already running. **No logout or restart is needed**, on X11 or Wayland.
+* Keys the window doesn't know and Wayland-only sections (`[output.*]`) in your
+  file are kept; comments next to the keys it edits are not.
+
+Reload also works from a keybinding or script: `xwob --reload`.
+
+How it works: wob runs in a seccomp sandbox and cannot reopen files, so the
+backends read the config only at start. `xwob` therefore runs the backend as a
+child; `xwob --reload` sends it `SIGHUP`, it exits, and `xwob` starts it again
+with a freshly read file (standard input, e.g. the systemd FIFO, is handed over
+unchanged and nothing is lost). Only the installed backends `xwob-x11` and
+`xwob-wayland` are signalled, never a distribution's own `xob`/`wob`, and a bar
+started straight from the source tree (`xob/xob`, `wob/build/wob`) is not
+reloaded.
+
+Build: it needs Qt6 Widgets and is built automatically when Qt6 is found
+(`make WITH_GUI=no` to skip it, `WITH_GUI=yes` to require it). There is no moc
+step; the program is a single `.cpp` file.
 
 ## systemd (the same way wob does it)
 

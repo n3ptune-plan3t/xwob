@@ -3,6 +3,7 @@
 #   make                       build both backends
 #   make WITH_X11=no           build only the Wayland backend
 #   make WITH_WAYLAND=no       build only the X11 backend
+#   make WITH_GUI=no           skip the Qt6 settings GUI (default: built if Qt6 is found)
 #   make install [PREFIX=/usr] [DESTDIR=...]
 #
 # Package maintainers: libexecdir, sysconfdir, unitdir etc. are all overridable.
@@ -19,6 +20,14 @@ unitdir     ?= $(prefix)/lib/systemd/user
 WITH_X11     ?= yes
 WITH_WAYLAND ?= yes
 WITH_SYSTEMD ?= yes
+# settings GUI (Qt6 Widgets): yes, no, or auto = build it when Qt6 is found
+WITH_GUI     ?= auto
+
+PKG_CONFIG ?= pkg-config
+CXX        ?= g++
+ifeq ($(WITH_GUI),auto)
+WITH_GUI := $(if $(shell $(PKG_CONFIG) --exists Qt6Widgets && echo y),yes,no)
+endif
 
 MESON ?= meson
 NINJA ?= ninja
@@ -30,12 +39,19 @@ endif
 ifeq ($(WITH_WAYLAND),yes)
 TARGETS += wob/build/wob
 endif
+ifeq ($(WITH_GUI),yes)
+TARGETS += gui/xwob-settings
+endif
 
 all: $(TARGETS)
 
 bin/xwob: bin/xwob.in
 	sed -e 's#@libexecdir@#$(libexecdir)#g' -e 's#@sysconfdir@#$(sysconfdir)#g' $< > $@
 	chmod 755 $@
+
+gui/xwob-settings: gui/xwob-settings.cpp
+	$(CXX) $(CXXFLAGS) -std=c++17 -fPIC $(shell $(PKG_CONFIG) --cflags Qt6Widgets) $< -o $@ \
+		$(LDFLAGS) $(shell $(PKG_CONFIG) --libs Qt6Widgets)
 
 xob/xob: FORCE
 	$(MAKE) -C xob sysconfdir=$(sysconfdir)
@@ -57,6 +73,11 @@ ifeq ($(WITH_WAYLAND),yes)
 	@[ ! -f wob/build/wob.1 ] || install -Dm644 wob/build/wob.1 $(DESTDIR)$(mandir)/man1/xwob-wayland.1
 	@[ ! -f wob/build/wob.ini.5 ] || install -Dm644 wob/build/wob.ini.5 $(DESTDIR)$(mandir)/man5/xwob-wayland.ini.5
 endif
+ifeq ($(WITH_GUI),yes)
+	install -Dm755 gui/xwob-settings $(DESTDIR)$(bindir)/xwob-settings
+	install -Dm644 gui/xwob-settings.desktop $(DESTDIR)$(datarootdir)/applications/xwob-settings.desktop
+	install -Dm644 doc/xwob-settings.1 $(DESTDIR)$(mandir)/man1/xwob-settings.1
+endif
 	install -Dm644 examples/xwob.ini $(DESTDIR)$(sysconfdir)/xwob/xwob.ini
 ifeq ($(WITH_SYSTEMD),yes)
 	install -Dm644 systemd/xwob.socket $(DESTDIR)$(unitdir)/xwob.socket
@@ -67,12 +88,13 @@ endif
 uninstall:
 	rm -f $(DESTDIR)$(bindir)/xwob $(DESTDIR)$(mandir)/man1/xwob.1
 	rm -rf $(DESTDIR)$(libexecdir)/xwob $(DESTDIR)$(sysconfdir)/xwob
+	rm -f $(DESTDIR)$(bindir)/xwob-settings $(DESTDIR)$(datarootdir)/applications/xwob-settings.desktop $(DESTDIR)$(mandir)/man1/xwob-settings.1
 	rm -f $(DESTDIR)$(mandir)/man1/xwob-x11.1 $(DESTDIR)$(mandir)/man1/xwob-wayland.1 $(DESTDIR)$(mandir)/man5/xwob-wayland.ini.5
 	rm -f $(DESTDIR)$(unitdir)/xwob.socket $(DESTDIR)$(unitdir)/xwob.service
 
 clean:
 	$(MAKE) -C xob clean
-	rm -rf wob/build bin/xwob systemd/xwob.service
+	rm -rf wob/build bin/xwob systemd/xwob.service gui/xwob-settings
 
 FORCE:
 .PHONY: all install uninstall clean FORCE
